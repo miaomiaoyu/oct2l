@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-#!conda env create -n cvision --file environment.yml
+
+# OCT Two Layer "2L" Segmentation
+# MY
+# mmy@stanford.edu
+# Nov 03 2022
+
+
 
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.signal import convolve2d, medfilt, savgol_filter
 from sklearn.preprocessing import MinMaxScaler
 
@@ -11,6 +18,14 @@ from sklearn.preprocessing import MinMaxScaler
 
 class OCT2Layer:
 
+    # We first segment the inner limiting membrane (ILM) via edge detection from the
+    # top down.
+    # Using ILM as a guide, we search for the retinal pigment epithelium within
+    # a more confined area of the image.
+    # Both layers are exported as 2-dim matrix of size K,M, where K is the
+    # number of slices in the original OCT volume and M is the number of
+    # points along each B-scan (image).
+    
 
 
     def __init__(self):
@@ -28,20 +43,28 @@ class OCT2Layer:
             "conv_m": 6
 
         }
-    
-
-    def Load(self, filepath):
+        
+    def E2E_to_npy(self, filepath):
 
         """
-        Loads oct volume from filepath provided
+        Requires `oct_converter` which can be downloaded at https://github.com/marksgraham/OCT-Converter
 
         """
 
-        vol = np.load(filepath)
+        e2e = E2E(filepath)
+        oct_volumes = (e2e.read_oct_volume())
 
-        return vol
-        
-        
+        filename = os.path.splitext(os.path.basename(filepath))[0]
+
+        for volume in oct_volumes:
+            npy_volume = volume.save("{}/npy/{}.npy".format(
+                os.path.dirname(filepath), filename), dtype=object)
+
+        print("{}.npy saved".format(filename))
+
+        return npy_volume
+
+
     def get_parameters(self):
 
         """
@@ -54,10 +77,32 @@ class OCT2Layer:
 
         for k in self.parameters.keys():
             self.__setattr__(k, self.parameters[k])
+    
+
+    # data loading ------------------------------------------------------------
 
 
 
-    def Preprocess(self, vol):
+    def load(self, filepath):
+
+        """
+        Loads oct volume from filepath provided
+
+        """
+        fileext = os.path.splitext(filepath)[-1]
+
+        if fileext == ".npy":
+            vol = np.load(filepath)
+        elif fileext == ".E2E":
+            vol = self.E2E_to_npy(filepath)
+
+        return vol
+        
+
+    # data preprocessing -------------------------------------------------------
+
+
+    def preprocess(self, vol):
 
         """
         Applies a filter on images stored within the volume to increase intensity
@@ -71,7 +116,6 @@ class OCT2Layer:
 
         cvol = np.zeros((K, N, M))
         
-        #vol = np.uint8(vol)  # vol.max()==255
         scaler = MinMaxScaler(feature_range=(vol.min(), vol.max()))
 
         for k in range(K):
@@ -85,9 +129,12 @@ class OCT2Layer:
         
         return cvol
 
+    
+    # data segmenting ----------------------------------------------------------
+
 
     
-    def Segment_ilm(self, vol):
+    def segment(self, vol):
 
         """
         Performs segmentation on the data
@@ -106,31 +153,9 @@ class OCT2Layer:
 
             img = vol[k,:,:]
             points = self.get_outliers(img, M)
+            print(points)
             points = self.get_smoothedpoints(points)
-        
-            surface[k,:] = points
-        
-        return surface
-
-    
-    def Segment_rpe(self, vol, surfaceref):
-
-        """
-        Segment RPE layers
-        
-        """
-        
-        volsubset = self.get_volsubset(vol, surfaceref)
-
-        K, _, M = volsubset.shape
-
-        surface = np.zeros((K, M))
-
-        for k in range(K):
-
-            img = vol[k,:,:]
-            points = self.get_outliers(img, M)
-            points = self.get_smoothedpoints(points)
+            print(points)
         
             surface[k,:] = points
         
@@ -184,7 +209,8 @@ class OCT2Layer:
         return points
 
 
-    def get_volsubset(self, vol, surface, Nsubset=100):
+
+    def get_volstrip(self, vol, surface, height=100):
 
         """
         Run this for vol
@@ -194,59 +220,50 @@ class OCT2Layer:
 
         K, _, M = vol.shape
 
-        volsubset = np.zeros((K, Nsubset, M))
+        volstrip = np.zeros((K, height, M))
 
         for k in range(K):
             for m in range(M):
+
                 i0 = int(surface[k,m]) + 50  # makes sense for OCT scans to add this.
-                subset = vol[k, i0:i0+Nsubset, m]
 
-                if len(subset) < Nsubset:
-                    subset = np.append(subset, subset[-1])
-                elif len(subset) > Nsubset:
-                    subset = subset[:100]
+                strip = vol[k, i0:i0+height, m]
+
+
+                if len(strip) < height:
+
+                    strip = np.append(strip, [-1]*(height-len(strip)))
+          
+                elif len(strip) > height:
+                    strip = strip[:height]
+
+
+                volstrip[k,:,m] = strip
+
                 
-                volsubset[k,:,m] = subset
-                
-        return volsubset
+        return volstrip
 
 
 
 
+    def convert_e2e_to_npy(self, file):
 
+        """
+        Requires `oct_converter` which can be downloaded at https://github.com/marksgraham/OCT-Converter
 
-    
+        """
 
+        e2e = E2E(file)
+        oct_volumes = (e2e.read_oct_volume())
 
+        filename = os.path.splitext(os.path.basename(file))[0]
 
-    
+        for volume in oct_volumes:
+            npy_volume = volume.save("{}/npy/{}.npy".format(
+                os.path.dirname(file), filename), dtype=object)
 
-    
+        print("{}.npy saved".format(filename))
 
-
-        
-
-
-
-
-def convert_e2e_to_npy(file):
-
-    """
-    Requires `oct_converter` which can be downloaded at https://github.com/marksgraham/OCT-Converter
-
-    """
-
-    e2e = E2E(file)
-    oct_volumes = (e2e.read_oct_volume())
-
-    filename = os.path.splitext(os.path.basename(file))[0]
-
-    for volume in oct_volumes:
-        npy_volume = volume.save("{}/npy/{}.npy".format(
-            os.path.dirname(file), filename), dtype=object)
-
-    print("{}.npy saved".format(filename))
-
-    return npy_volume
+        return npy_volume
 
 
