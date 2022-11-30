@@ -25,10 +25,6 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 
-
-
-
-
 class OCT2Layer:
 
     def __init__(self, step):
