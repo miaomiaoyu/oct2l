@@ -5,12 +5,12 @@ clear; close all
 
 fileDir='surfaces/*surface.mat';
 d = dir(fileDir);
+
 for i = 1:length(d)
     a = load(d(i).name);
     surface = a.surface;
     meshBuilder(surface)
 end
-
 
 %% Cropped volume
 close all

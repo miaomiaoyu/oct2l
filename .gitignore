@@ -1,5 +1,4 @@
 data/
-env/
-scripts/mdai/
-scripts/tmp/
+mdai/
+tmp/
 dump/

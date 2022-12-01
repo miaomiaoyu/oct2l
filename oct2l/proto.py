@@ -32,16 +32,16 @@ def is_oct(file, ext=('.npy', '.E2E')):
 def parse_args():
     parser = argparse.ArgumentParser(description='2-layer SD-OCT segmentation')
     parser.add_argument('--filename', help='filename.ext of the dataset')
-    parser.add_argument('--layers', help='which layers')
     args = parser.parse_args()
     assert (is_oct(args.filename)), \
         'File provided must be either .npy or .E2E.'
     return args
 
 
-class OCT2LProto:
+class OCT2L:
 
-    """ first version """
+    """ Segments internal limiting membrane (ILM) in optical coherence tomography (OCT) volume and returns the surface as 2-D matrix. Also returns a cropped volume beneath that surface for RPE segmentation """
+
     def __init__(self):
         print('oct2l init')
     
@@ -54,14 +54,13 @@ class OCT2LProto:
     def loading(self, filename):
         ''' loads the volume in based on file extension '''
         ext = os.path.splitext(os.path.basename(filename))[-1]
+        
         filepath = "../data/%s" % filename
         match ext:
             case '.E2E':
                 volume = self.e2e_to_npy(filepath)
             case '.npy':
                 volume = np.load(filepath)
-            case other:
-                print('unacceptable filetype > {}'.format(ext))
         return volume
 
     def saving(self, objects, filename):
@@ -136,7 +135,7 @@ class OCT2LProto:
         1) find, remove and interpolate big spikes(ie. derivations)
         2) 
         '''
-        spikes = self.spikes_get(surface, stride=10)
+        spikes = self.spikes_get(surface, stride=stride)
         spikeless_surface = self.spikes_remove(surface, spikes)
         intp_surface = self.surface_interpolate(spikeless_surface)
         return intp_surface
@@ -230,25 +229,17 @@ def main(args):
     filename = args.filename
     layers = args.layers
 
-    model = OCT2LProto()
+    model = OCT2L()
     tic = time.time()
 
-    match layers:
-        case 'ilm':
-            volume = model.loading(filename)  # make this a folder loop
-            c_volume = model.preprocessing(volume)  # convolved volume
-            surface = model.segmenting(c_volume)  # get ilm surface
-            surface_ilm = model.correcting(surface)  # smoothing required
-        case 'both':
-            volume = model.loading(filename)  # make this a folder loop
-            c_volume = model.preprocessing(volume)  # convolved volume
-            surface = model.segmenting(c_volume)  # get ilm surface
-            surface_ilm = model.correcting(surface)  # smoothing required
-            _ = model.saving(surface_ilm, 'surface_ilm.mat')
-            cr_volume = model.cropping(volume, surface_ilm, height=150)
-            surface = model.segmenting(cr_volume)   # get ilm surface
-            surface_rpe = model.correcting(surface)  # need to add height+50...
-            _ = model.saving(surface_rpe, 'surface_rpe.mat')
+    volume = model.loading(filename)  # make this a folder loop
+    c_volume = model.preprocessing(volume)  # convolved volume
+    surface = model.segmenting(c_volume)  # get ilm surface
+    surface_ilm = model.correcting(surface)  # smoothing required
+    _ = model.saving(surface_ilm, 'surface_ilm.mat')
+    cr_volume = model.cropping(volume, surface_ilm, height=150)
+    _ = model.saving(cr_volume, 'cr_volume.mat')
+
     toc = time.time()
     print("time elapsed: %.1f seconds" % (toc-tic))
 
