@@ -14,7 +14,7 @@ import scipy
 from scipy.interpolate import splrep, splev
 from scipy.signal import convolve2d, medfilt, savgol_filter
 from sklearn.preprocessing import MinMaxScaler
-from workspace import get_paths, set_paths
+from workspace import paths_get, paths_set
 
 def parse_args():
     parser = argparse.ArgumentParser(description='2-layer SD-OCT segmentation')
@@ -25,9 +25,9 @@ def parse_args():
 def load_volume(filename):
     return np.load(filename)
 
-def save_mat(filename, obj, PATH):
-    obj = {'f':obj}
-    scipy.io.savemat(os.path.join(PATH, filename), obj)
+def save_mat(filename, objs, PATH):
+    ''' objs is a dict with names as keys and data as values '''
+    scipy.io.savemat(os.path.join(PATH, filename), objs)
     
 def save_npy(filename, obj, PATH):
     with open(os.path.join(PATH, filename), 'wb') as f:
@@ -48,8 +48,8 @@ def preprocessing(volume):
         c_volume[k,:,:] = c_image
     return c_volume
 
-def locate_points(image):
-    '''Finds the outliers within each image'''
+def points_locate(image):
+    ''' finds the outliers within each image'''
     _,M = image.shape
     points = []
     for m in range(M):
@@ -65,7 +65,7 @@ def locate_points(image):
         points.append(outlier)
     return points
 
-def filter_points(points):
+def points_filter(points):
     ''' applies a median filter followed by a savistsky golay filter '''
     points = medfilt(points, 15)
     points = savgol_filter(points, 31, 3)
@@ -77,12 +77,12 @@ def segmenting(volume):
     surface = np.zeros((K, M))
     for k in range(K):
         image = volume[k,:,:]
-        points = locate_points(image)
-        points = filter_points(points)
+        points = points_locate(image)
+        points = points_filter(points)
         surface[k,:] = points
     return surface
 
-def locate_spikes(surface, stride=10):
+def spikes_locate(surface, stride=10):
     ''' tries to correct via finding big changes in derivatives, quant set at .9-.95 ''' 
     K, M = surface.shape
     spikes = np.zeros((K, M))
@@ -96,11 +96,11 @@ def locate_spikes(surface, stride=10):
         spikes[k, spike_index]=+1   # 1 = spike, 0 = no spike
     return spikes
 
-def filter_spikes(surface, spikes):
+def spikes_filter(surface, spikes):
     ''' replace spikes with np.nan: quick way to test if spikes are gone '''
     return np.where(spikes==0, surface, np.nan)
 
-def interpolate_surface(surface):
+def surface_interpolate(surface):
     ''' interpolate , polynomial factor set to 1 for edges and 2 for middle areas '''
     K, M = surface.shape
     intp_surface = []
@@ -121,9 +121,9 @@ def correcting(surface, stride=10):
     1) find, remove and interpolate big spikes(ie. derivations)
     2) 
     '''
-    spikes = locate_spikes(surface, stride=stride)
-    spikeless_surface = filter_spikes(surface, spikes)
-    intp_surface = interpolate_surface(spikeless_surface)
+    spikes = spikes_locate(surface, stride=stride)
+    spikeless_surface = spikes_filter(surface, spikes)
+    intp_surface = surface_interpolate(spikeless_surface)
     return intp_surface
 
 def crop_volume(volume, surface, height=100):
@@ -174,37 +174,26 @@ def visualizing(volume, surface, stride=None):
 
 def main(args):
     folder = args.folder
-    _, _, DATA_PATH, OUTPUT_PATH, _ = get_paths()
-
-    data_dir = set_paths(DATA_PATH, folder)
-    ilm_dir = set_paths(OUTPUT_PATH, 'ilm')
-    cvol_dir = set_paths(OUTPUT_PATH, 'cropvol')
-    vol_dir = set_paths(OUTPUT_PATH, 'vol')
-
+    _, _, DATA_PATH, OUTPUT_PATH, _ = paths_get()
+    data_dir = paths_set(DATA_PATH, folder)
+    output_dir = paths_set(OUTPUT_PATH, '01')
     tic = time.time()
     for filename in tqdm(glob.glob(data_dir+'/*.npy')):
         try:
             fname,_ = os.path.splitext(os.path.basename(filename))
+            fname = fname.replace(' ', '_')
             volume = load_volume(filename)
-            save_mat(fname+'_volume.mat', volume, vol_dir)
             preprocessed_volume = preprocessing(volume)
             surface = segmenting(preprocessed_volume)
             ilm_surface = correcting(surface)
-            fname = fname.replace(' ', '_')
-            save_mat(fname+'_ilm.mat', ilm_surface, ilm_dir)
             cropped_volume = crop_volume(volume, ilm_surface, height=150)
-            save_mat(fname+'_crop.mat', cropped_volume, cvol_dir)
+            objs = {'octvolume':volume, 'octvolumecropped':cropped_volume, 'ilm':ilm_surface}
+            save_mat(fname+'_01.mat', objs, output_dir)
             print("%s completed" % fname)
         except ValueError:
             print("%s produced ValueError", fname)
     toc = time.time()
     print("time elapsed: %.1f seconds" % (toc-tic))
-
-    # -- matlab engine to run cannyDetector 
-    # 02 Dec 2022: this doesn't work on M1 chip.
-    #eng = matlab.engine.start_matlab(SCRIPT_PATH)  # cwd = where the scripts live
-    #eng.cannyRun(CVOL_DIR, nargout=0)  # run
-    # --
     
 if __name__ == "__main__":
     args = parse_args()
