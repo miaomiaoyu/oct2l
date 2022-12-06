@@ -1,5 +1,7 @@
 data/
-mdai/
+mdai/mdai_labelled_data_img/
+mdai/mdai_labelled_data_meta.csv
+mdai/*.json
 tmp/
 dump/
 output/
