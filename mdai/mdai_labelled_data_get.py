@@ -1,18 +1,19 @@
 #!usr/bin/env python3
 
 import os
+import glob
 import time
 import cv2
 import csv
 import pandas as pd
 import numpy as np
 from pathlib import PurePath
+from PIL import Image
 import torch
 from torch.utils.data import Dataset
 
 import warnings
 warnings.filterwarnings('ignore')
-
 
 
 
@@ -25,6 +26,16 @@ def write_to_csv(data, header, filename):
     
     return csv_file
 
+def npy_to_png():
+    # sloppyyyy
+    for f in glob.glob('../data/project-files-2022-11-30-npy/*.npy'):
+        volume = np.load(f)
+        for this_slice in range(97):
+            arr = np.squeeze(volume[this_slice,:,:])
+            img = Image.fromarray(arr)
+            img = img.convert('RGB')
+            fname = '%s_' % this_slice + os.path.basename(f).replace(' ', '_').replace('.npy', '.png')
+            img.save(os.path.join('../data/png/', fname))
 
 def mdai_labelled_data_get(annots, root_dir):
     ''' Retrieves the labelled OCT data from MD.ai platform
@@ -45,9 +56,9 @@ def mdai_labelled_data_get(annots, root_dir):
 
     for i in range(annots.shape[0]):
         
-        idx           = annots.loc[i,'id']
-        data          = annots.loc[i,'data']
-        meta          = annots.loc[i,[
+        idx  = annots.loc[i,'id']
+        data = annots.loc[i,'data']
+        meta = annots.loc[i,[
             'id', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'labelName', 'frameNumber']].tolist()
 
         try:
