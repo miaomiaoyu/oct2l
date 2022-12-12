@@ -1,5 +1,5 @@
 data/
-mdai/mdai_labelled_data_img/
+mdai/mdai_labelled_data_masks/
 mdai/mdai_labelled_data_meta.csv
 mdai/*.json
 tmp/

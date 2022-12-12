@@ -4,28 +4,10 @@ import os
 import sys
 sys.path.insert(1, '../mdai/')
 
-import shutil
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from sklearn.model_selection import train_test_split
-import torch
-import torch.nn as nn 
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-import torchvision
-from torch.autograd import Variable
-from torchsummary import summary
-import segmentation_models_pytorch as smp
-
-from PIL import Image
 import cv2
-import albumentations as alb # A
-
-import time
-import os
-from tqdm.notebook import tqdm
+import torch
+from torch.utils.data import Dataset
+import numpy as np
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -33,7 +15,6 @@ warnings.filterwarnings('ignore')
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class OpticDiscDrusenDataset(Dataset):
     ''' Makes the exported masks, labels and images into a torch Dataset
@@ -56,17 +37,15 @@ class OpticDiscDrusenDataset(Dataset):
             idx = idx.tolist()  # turns requested index numbers to a list
 
         img = cv2.imread(os.path.join(self.img_path, self.x_set[idx]) + '.png')
-        #img = cv2.cvtColor(img, cv2.COLOR_BGR2GRGB)  # convert to greyscale
         mask = np.load(os.path.join(self.mask_path, self.x_set[idx]) + '.npy')
 
         if self.transform:  # for images
             img = self.transform(img)
-            img = nn.functional.pad(input=img, pad=(0,0,8,8), mode='constant') # pad so that size is 512 x 768
+            #img = nn.functional.pad(input=img, pad=(0,0,8,8), mode='constant') # pad so that size is 512 x 768
         
         if self.target_transform:   # for masks (labels?)
             mask = self.target_transform(mask)
-            mask = nn.functional.pad(input=mask, pad=(0,0,8,8), mode='constant') # pad so that size is 512 x 768
+            #mask = nn.functional.pad(input=mask, pad=(0,0,8,8), mode='constant') # pad so that size is 512 x 768
     
         return img, mask
-    
-
+        
