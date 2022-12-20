@@ -2,8 +2,8 @@ function [] = meshBuilder(surface)
 % octMeshBuild Constructs meshes from segmented surfaces
 %   Produces 4 kinds of subplots.
 
-    conv2Surface = conv2(surface,(ones(7,1)/7), "same");
-    imgaussfiltSurface = imgaussfilt(surface,2);
+    conv2Surface = conv2(surface,(ones(3,3)/9), "same");
+    imgaussfiltSurface = imgaussfilt(surface,1);
     medfilt2Surface = medfilt2(surface, [9,1]);
     
     K = size(surface,1);
@@ -37,15 +37,19 @@ function [] = meshBuilder(surface)
 
     subplot(2,4,5)
     mesh(X,Y,surface)
+    ylim([0,496])
 
     subplot(2,4,6)
     mesh(X,Y,conv2Surface)
+    ylim([0,496])
 
     subplot(2,4,7)
     mesh(X,Y,imgaussfiltSurface)
+    ylim([0,496])
     
     subplot(2,4,8)
     mesh(X,Y,medfilt2Surface)
+    ylim([0,496])
     
 
 end

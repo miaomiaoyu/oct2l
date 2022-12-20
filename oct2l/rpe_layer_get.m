@@ -10,7 +10,7 @@ function [] = rpe_layer_get()
     inputPath = fullfile(basePath, inputFolder);
     inputDir = dir(inputPath); % dir not path
 
-    for i = 1:length(inputDir)
+    for i = 1:4%length(inputDir)
 
         if contains(inputDir(i).name, 'ODD-')  % ignore .DS_store
             fName = inputDir(i).name;

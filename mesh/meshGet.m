@@ -3,14 +3,43 @@ addpath(genpath())
 %% Build mesh from surface
 clear; close all
 
-fileDir='surfaces/*surface.mat';
-d = dir(fileDir);
+basePath = '~/workspace/oct2l/output';
+inputFolder = '02';
+inputPath = fullfile(basePath, inputFolder);
+inputDir = dir(inputPath); % dir not path
 
-for i = 1:length(d)
-    a = load(d(i).name);
-    surface = a.surface;
-    meshBuilder(surface)
+for i = 1:3%length(inputDir)
+    
+    if contains(inputDir(i).name, '_02')  % ignore .DS_store
+        fName = inputDir(i).name;
+        inputFile = fullfile(inputPath, fName);
+        
+        f = load(inputFile);
+        f = f.f; % idk why but somehow it's saved like this
+
+        volume = f.octvolume;
+        ilm = f.ilm;
+        rpe = f.rpe;
+        
+        topSurface = zeros(97,768);
+
+        for thisSlice=1:97
+            for thisCol=1:768
+                c = find(rpe(thisSlice,:,thisCol));
+                if ~isempty(c)
+                    topSurf = min(c);
+                else
+                    topSurf = NaN;
+                end
+                topSurface(thisSlice,thisCol) = topSurf;
+            end
+        end
+    end
 end
+
+
+
+
 
 %% Cropped volume
 close all

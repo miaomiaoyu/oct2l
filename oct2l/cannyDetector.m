@@ -3,7 +3,7 @@ function edges = cannyDetector(volume)
 % returns edges, a 2-D matrix
 
 [K,N,M] = size(volume);
-threshold = .95;
+threshold = .8;
 edges = zeros([K,N,M]);
 
 for k = 1:K
@@ -13,3 +13,4 @@ for k = 1:K
     edges(k,:,:) = edge(bw, 'Canny', threshold);
 end
 
+end
